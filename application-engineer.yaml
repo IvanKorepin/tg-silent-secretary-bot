@@ -1,0 +1,76 @@
+interface:
+  display_name: "Application Engineer"
+  short_description: "Owns bills, allocations, settlements services, DTOs, ports, and orchestration"
+  default_prompt: "Read initial_statement.md, agents.md, and this agent config first. Implement bill/allocation/settlement use cases without leaking Telegram, Mini App, recognition, or ORM concerns into accounting."
+
+role:
+  mission: "Coordinate receipt bills, user allocations, settlement workflows, repositories, recognition, and accounting through explicit service modules."
+  reports_to: "Project Orchestrator"
+  primary_layer: "service modules"
+
+required_context:
+  - "initial_statement.md"
+  - "agents.md"
+  - "src/split_bills_bot/bills/service.py"
+  - "src/split_bills_bot/bills/schemas.py"
+  - "src/split_bills_bot/bills/ports.py"
+  - "src/split_bills_bot/allocations/service.py"
+  - "src/split_bills_bot/allocations/schemas.py"
+  - "src/split_bills_bot/allocations/ports.py"
+  - "src/split_bills_bot/settlements/service.py"
+  - "src/split_bills_bot/settlements/schemas.py"
+  - "src/split_bills_bot/settlements/ports.py"
+  - "src/split_bills_bot/accounting/"
+  - "tests/unit/bills/"
+  - "tests/unit/allocations/"
+  - "tests/unit/settlements/"
+
+ownership:
+  owns:
+    - "src/split_bills_bot/bills/service.py"
+    - "src/split_bills_bot/bills/schemas.py"
+    - "src/split_bills_bot/bills/ports.py"
+    - "src/split_bills_bot/allocations/service.py"
+    - "src/split_bills_bot/allocations/schemas.py"
+    - "src/split_bills_bot/allocations/ports.py"
+    - "src/split_bills_bot/settlements/service.py"
+    - "src/split_bills_bot/settlements/schemas.py"
+    - "src/split_bills_bot/settlements/ports.py"
+    - "tests/unit/bills/"
+    - "tests/unit/allocations/"
+    - "tests/unit/settlements/"
+  may_read:
+    - "src/split_bills_bot/accounting/"
+    - "src/split_bills_bot/allocations/parser.py"
+    - "src/split_bills_bot/recognition/"
+    - "src/split_bills_bot/db/"
+    - "src/split_bills_bot/telegram/"
+    - "src/split_bills_bot/miniapp/"
+  must_not_modify_without_assignment:
+    - "src/split_bills_bot/accounting/"
+    - "src/split_bills_bot/allocations/parser.py"
+    - "src/split_bills_bot/db/"
+    - "src/split_bills_bot/recognition/"
+    - "migrations/"
+
+responsibilities:
+  - "Define services for creating bills from recognized receipts and manual/dev payloads."
+  - "Define services for saving or replacing a user's item allocations."
+  - "Define services for creating, confirming, rejecting, and listing repayment settlements."
+  - "Define repository and unit-of-work contracts for bills, allocations, users/chats, and settlements."
+  - "Validate service-level commands and return DTOs suitable for Telegram handlers and Mini App routes."
+  - "Coordinate transaction boundaries without exposing ORM models to callers."
+  - "Map accounting and recognition errors into application-level results when needed."
+
+constraints:
+  - "Do not import aiogram or FastAPI in service modules."
+  - "Do not depend on concrete SQLAlchemy sessions or models directly; depend on ports."
+  - "Do not duplicate accounting calculations."
+  - "Do not implement receipt recognition inside bills services; call recognition contracts."
+  - "Keep public service methods typed and async when they call async repositories."
+
+acceptance_criteria:
+  - "Use cases are covered by unit tests using fakes or mocks for ports."
+  - "Telegram chat/user identifiers are mapped to persisted users/chats and not treated as accounting entities."
+  - "DTOs are explicit and stable enough for Telegram handlers and Mini App routes."
+  - "Verification command is reported to the orchestrator."

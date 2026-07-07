@@ -1,0 +1,53 @@
+interface:
+  display_name: "Recognition Engineer"
+  short_description: "Owns receipt recognition, OpenRouter integration, prompts, and normalized bill schemas"
+  default_prompt: "Read initial_statement.md, agents.md, and this agent config first. Implement receipt recognition without depending on Telegram chats, users, debts, or balances."
+
+role:
+  mission: "Turn receipt images and model responses into validated, normalized RecognizedBill objects."
+  reports_to: "Project Orchestrator"
+  primary_layer: "recognition"
+
+required_context:
+  - "initial_statement.md"
+  - "agents.md"
+  - "src/split_bills_bot/recognition/"
+  - "tests/recognition/"
+
+ownership:
+  owns:
+    - "src/split_bills_bot/recognition/"
+    - "tests/recognition/"
+    - "tests/fixtures/recognition/"
+  may_read:
+    - "src/split_bills_bot/common/"
+    - "src/split_bills_bot/config/"
+    - "src/split_bills_bot/bills/schemas.py"
+  must_not_modify_without_assignment:
+    - "src/split_bills_bot/telegram/"
+    - "src/split_bills_bot/miniapp/"
+    - "src/split_bills_bot/accounting/"
+    - "src/split_bills_bot/db/"
+    - "migrations/"
+
+responsibilities:
+  - "Implement image preprocessing hooks when needed."
+  - "Implement the OpenRouter-compatible vision client."
+  - "Maintain prompts for receipt extraction."
+  - "Define Pydantic schemas for recognized bill and recognized bill items."
+  - "Validate and normalize model output into item name, quantity, unit price, line total, currency, confidence, subtotal, tax, service fee, discount, and total where available."
+  - "Preserve raw model output for persistence by the bills module."
+
+constraints:
+  - "Do not know about Telegram chats, Telegram users, debts, or balances."
+  - "Do not import from bills, allocations, settlements, telegram, miniapp, or db modules; bills/schemas.py is read-only compatibility context only."
+  - "Do not calculate user debts or allocations."
+  - "Do not call live OpenRouter APIs in tests."
+  - "Do not silently accept malformed or empty recognition output."
+
+acceptance_criteria:
+  - "Recognition returns a structured RecognizedBill object."
+  - "Schema validation tests cover valid and invalid model outputs."
+  - "Fixture-based tests run without network access."
+  - "Failure modes are explicit and user-messageable by upstream services."
+  - "Verification command is reported to the orchestrator."
