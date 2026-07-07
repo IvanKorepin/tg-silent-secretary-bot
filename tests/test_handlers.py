@@ -53,3 +53,13 @@ def test_config_fails_fast_without_required_vars(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
+
+
+def test_config_rejects_empty_and_weak_values(monkeypatch):
+    monkeypatch.setenv("BOT_TOKEN", "")
+    monkeypatch.setenv("WEBHOOK_URL", "https://example.com/webhook")
+    monkeypatch.setenv("WEBHOOK_SECRET", "short")
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(_env_file=None)
+    errors = {e["loc"][0] for e in exc_info.value.errors()}
+    assert errors == {"bot_token", "webhook_secret"}

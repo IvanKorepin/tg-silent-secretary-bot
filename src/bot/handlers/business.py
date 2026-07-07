@@ -22,9 +22,13 @@ async def handle_business_message(message: Message, bot: Bot) -> None:
             message.message_id,
         )
     except Exception:
-        # NF-03: log and keep going, never crash the update loop
+        # NF-03: log and keep going, never crash the update loop.
+        # CancelledError is BaseException on py3.8+, so shutdown passes through.
         logger.exception(
-            "read failed | chat=%s msg=%s", message.chat.id, message.message_id
+            "read failed | conn=%s chat=%s msg=%s",
+            message.business_connection_id,
+            message.chat.id,
+            message.message_id,
         )
 
 
