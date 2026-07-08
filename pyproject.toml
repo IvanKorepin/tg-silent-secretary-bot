@@ -2,6 +2,7 @@
 name = "tg-silent-secretary-bot"
 version = "0.1.0"
 description = "Telegram Business secretary bot that silently marks incoming messages as read"
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "aiogram>=3.7,<4.0",

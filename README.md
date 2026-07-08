@@ -3,6 +3,7 @@
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![aiogram](https://img.shields.io/badge/aiogram-3.x-2CA5E0)
 ![Docker](https://img.shields.io/badge/docker-compose-2496ED)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 A Telegram bot running in **Business Secretary** mode that automatically marks incoming messages as read in the chats you allow. It works silently: never posts to chats, never sends notifications, and stores nothing on disk.
 
@@ -185,3 +186,7 @@ tests/
 - **Phase 1 (current):** silent mark-as-read, single user, self-hosted
 - **Phase 2:** AI-generated chat digests delivered to your private chat with the bot
 - **Phase 3:** multi-user SaaS with persistent sessions
+
+## License
+
+[MIT](LICENSE)
