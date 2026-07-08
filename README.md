@@ -1,43 +1,75 @@
-# tg-silent-secretary-bot
+# Telegram Silent Secretary Bot
 
-Telegram-бот в режиме Business Secretary: автоматически отмечает входящие сообщения как прочитанные в разрешённых чатах. Работает тихо — не пишет в чаты, не хранит данные на диске.
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![aiogram](https://img.shields.io/badge/aiogram-3.x-2CA5E0)
+![Docker](https://img.shields.io/badge/docker-compose-2496ED)
 
-## Требования
+A Telegram bot running in **Business Secretary** mode that automatically marks incoming messages as read in the chats you allow. It works silently: never posts to chats, never sends notifications, and stores nothing on disk.
 
-- **Telegram Premium** у пользователя — режим Telegram Business доступен только подписчикам.
-- Сервер с публичным IP и доменом (Telegram шлёт вебхуки только на HTTPS с валидным сертификатом).
-- Docker + Docker Compose.
-- Reverse proxy с TLS (Nginx или Caddy) на том же сервере.
+Subscribed to dozens of channels and chats you never actually read? This bot clears the unread-counter noise for you.
 
-## 1. Регистрация бота в Telegram
+## How it works
 
-1. Откройте [@BotFather](https://t.me/BotFather) → `/newbot`.
-2. Задайте имя (отображаемое) и username бота (должен оканчиваться на `bot`).
-3. Сохраните выданный **токен** — это `BOT_TOKEN`.
-4. **Включите Business Mode** — без этого шага business-апдейты не приходят вообще:
-   `/mybots` → выберите бота → **Bot Settings** → **Business Mode** → **Turn on**.
+```
+Telegram → HTTPS → reverse proxy (TLS) → aiohttp:8080 (aiogram) → readBusinessMessage()
+```
 
-## 2. Конфигурация
+You assign the bot as a secretary in Telegram Business settings and pick the chats it may see. Telegram delivers each incoming message to the bot's webhook, and the bot immediately marks it as read.
+
+- `business_message` → `readBusinessMessage()`, logged to stdout
+- `edited_business_message` → accepted as a no-op (so Telegram stops retrying)
+- `business_connection` → connect/disconnect logging
+- API errors are logged and never crash the process
+
+## Requirements
+
+- **Telegram Premium** — Business mode is only available to Premium subscribers
+- A server with a public IP and a domain (Telegram only delivers webhooks over HTTPS with a valid certificate)
+- Docker + Docker Compose
+- A reverse proxy with TLS (Nginx or Caddy) on the same host
+
+## Quick start
+
+```sh
+git clone https://github.com/IvanKorepin/tg-silent-secretary-bot.git
+cd tg-silent-secretary-bot
+cp .env.example .env   # fill in BOT_TOKEN, WEBHOOK_URL, WEBHOOK_SECRET
+docker compose up -d --build
+```
+
+The steps below walk through everything the `.env` needs.
+
+## Deployment
+
+### 1. Register the bot in Telegram
+
+1. Open [@BotFather](https://t.me/BotFather) → `/newbot`.
+2. Choose a display name and a username (must end with `bot`).
+3. Save the **token** — this is your `BOT_TOKEN`.
+4. **Enable Business Mode** — without this step no business updates are delivered at all:
+   `/mybots` → select the bot → **Bot Settings** → **Business Mode** → **Turn on**.
+
+### 2. Configure
 
 ```sh
 cp .env.example .env
 ```
 
-| Переменная | Что указать |
+| Variable | Value |
 |---|---|
-| `BOT_TOKEN` | токен из BotFather |
-| `WEBHOOK_URL` | публичный HTTPS-адрес вебхука, например `https://bot.example.com/webhook` |
-| `WEBHOOK_SECRET` | случайная строка ≥16 символов: `openssl rand -hex 32` |
-| `WEBHOOK_PATH` | путь, на котором слушает бот (default `/webhook`, должен совпадать с путём в `WEBHOOK_URL`) |
-| `PORT` | порт aiohttp-сервера (default `8080`) |
+| `BOT_TOKEN` | token from BotFather |
+| `WEBHOOK_URL` | public HTTPS webhook address, e.g. `https://bot.example.com/webhook` |
+| `WEBHOOK_SECRET` | random string, ≥16 chars: `openssl rand -hex 32` |
+| `WEBHOOK_PATH` | path the bot listens on (default `/webhook`, must match the path in `WEBHOOK_URL`) |
+| `PORT` | aiohttp server port (default `8080`) |
 
-`.env` в gitignore — не коммитьте его.
+`.env` is gitignored — never commit it.
 
-## 3. Reverse proxy (TLS)
+### 3. Reverse proxy (TLS)
 
-Telegram требует HTTPS; TLS терминируется на прокси, до контейнера трафик идёт по HTTP.
+Telegram requires HTTPS; TLS terminates at the proxy, traffic to the container goes over plain HTTP.
 
-**Caddy** (сертификат получит и обновит сам):
+**Caddy** (obtains and renews the certificate automatically):
 
 ```
 bot.example.com {
@@ -45,7 +77,7 @@ bot.example.com {
 }
 ```
 
-**Nginx** (сертификат — через certbot: `certbot --nginx -d bot.example.com`):
+**Nginx** (certificate via certbot: `certbot --nginx -d bot.example.com`):
 
 ```nginx
 server {
@@ -62,77 +94,94 @@ server {
 }
 ```
 
-## 4. Запуск в Docker
+### 4. Run with Docker
 
 ```sh
 docker compose up -d --build
 docker compose logs -f
 ```
 
-В логах должно появиться `webhook set: https://...`.
+The logs should show `webhook set: https://...`.
 
-Обновление после изменения кода:
+To update after a code change:
 
 ```sh
 git pull && docker compose up -d --build
 ```
 
-## 5. Регистрация вебхука
+### 5. Webhook registration
 
-**Ничего делать не нужно** — бот сам вызывает `setWebhook` при каждом старте, передавая `WEBHOOK_URL`, `WEBHOOK_SECRET` и `allowed_updates` для business-апдейтов.
+**Nothing to do manually** — the bot calls `setWebhook` on every startup, passing `WEBHOOK_URL`, `WEBHOOK_SECRET`, and the `allowed_updates` list required for business updates.
 
-Проверить, что вебхук зарегистрирован:
+Verify the webhook is registered:
 
 ```sh
 curl -s "https://api.telegram.org/bot<BOT_TOKEN>/getWebhookInfo" | python3 -m json.tool
 ```
 
-Ожидаемо: `"url"` совпадает с `WEBHOOK_URL`, `"pending_update_count": 0`, `"allowed_updates"` содержит `business_message`. Поле `"last_error_message"` — первое место, куда смотреть при проблемах.
+Expected: `"url"` matches `WEBHOOK_URL`, `"pending_update_count": 0`, and `"allowed_updates"` contains `business_message`. The `"last_error_message"` field is the first place to look when something is off.
 
-Снять вебхук (например, чтобы погонять бота на другом хосте):
+Remove the webhook (e.g. to run the bot from another host):
 
 ```sh
 curl -s "https://api.telegram.org/bot<BOT_TOKEN>/deleteWebhook"
 ```
 
-## 6. Подключение секретаря
+### 6. Connect the secretary
 
-На телефоне (в десктоп-клиентах раздела может не быть):
+On your phone (the section may be missing in desktop clients):
 
-1. Telegram → **Настройки** → **Telegram Business** → **Чат-боты**.
-2. Введите username бота, подключите.
-3. Выберите чаты: разделы «Личные чаты» / исключения. Бот видит **только** разрешённые здесь чаты.
+1. Telegram → **Settings** → **Telegram Business** → **Chatbots**.
+2. Enter the bot's username and connect it.
+3. Choose the chats: private chats / exclusions. The bot only ever sees the chats allowed here.
 
-## 7. Проверка
+### 7. Verify
 
-Попросите кого-нибудь написать вам в разрешённый чат (или напишите себе со второго аккаунта):
+Ask someone to message you in an allowed chat (or message yourself from a second account):
 
-- счётчик непрочитанных обнуляется сам;
-- в `docker compose logs -f` появляется строка `✓ read | conn=... chat=... msg=...`.
+- the unread counter clears on its own;
+- `docker compose logs -f` shows a `✓ read | conn=... chat=... msg=...` line.
 
 ## Troubleshooting
 
-| Симптом | Причина |
+| Symptom | Cause |
 |---|---|
-| Нет апдейтов, `getWebhookInfo` без ошибок | Business Mode не включён в BotFather, или чат не разрешён в настройках TG Business |
-| `last_error_message: SSL error` | Невалидный/самоподписанный сертификат на прокси |
-| `last_error_message: Connection refused` | Контейнер не запущен или прокси указывает не на тот порт |
-| Бот падает на старте с `ValidationError` | Не заполнены `BOT_TOKEN` / `WEBHOOK_URL` / `WEBHOOK_SECRET` (секрет — минимум 16 символов) |
-| `401 Unauthorized` в логах Telegram-запросов | Неверный `BOT_TOKEN` |
+| No updates, `getWebhookInfo` shows no errors | Business Mode is off in BotFather, or the chat is not allowed in Telegram Business settings |
+| `last_error_message: SSL error` | Invalid or self-signed certificate on the proxy |
+| `last_error_message: Connection refused` | Container is down or the proxy points to the wrong port |
+| Bot exits on startup with `ValidationError` | `BOT_TOKEN` / `WEBHOOK_URL` / `WEBHOOK_SECRET` missing (secret must be ≥16 chars) |
+| `401 Unauthorized` in Telegram API responses | Wrong `BOT_TOKEN` |
 
-## Разработка
+## Development
 
 ```sh
 uv sync
 uv run pytest
 ```
 
-Локальный запуск без публичного домена: `ngrok http 8080`, полученный URL — в `WEBHOOK_URL`, затем `uv run python -m bot.main`.
+Local run without a public domain: `ngrok http 8080`, put the resulting URL into `WEBHOOK_URL`, then `uv run python -m bot.main`.
 
-## Ограничения (MVP)
+Project layout:
 
-- Бот видит только новые сообщения (не историю) и только в чатах, разрешённых в TG Business UI.
-- Ничего не хранится между перезапусками; пропущенные апдейты Telegram переотправит сам.
-- Один инстанс — один пользователь.
+```
+src/bot/
+├── main.py               # entry point: webhook server startup
+├── config.py             # pydantic-settings, fail-fast validation
+└── handlers/
+    ├── business.py       # business_message + edited_business_message
+    └── connection.py     # business_connection logging
+tests/
+└── test_handlers.py
+```
 
-Документация: `docs/BUSINESS_ANALYSIS.md`, `docs/SYSTEM_ANALYSIS.md`.
+## Limitations
+
+- Due to Bot API restrictions, the bot only sees **new** messages (no history) and only in chats explicitly allowed in the Telegram Business UI.
+- Nothing is persisted between restarts; updates missed while the bot is down are redelivered by Telegram.
+- One instance serves one user (MVP).
+
+## Roadmap
+
+- **Phase 1 (current):** silent mark-as-read, single user, self-hosted
+- **Phase 2:** AI-generated chat digests delivered to your private chat with the bot
+- **Phase 3:** multi-user SaaS with persistent sessions

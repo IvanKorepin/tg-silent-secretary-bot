@@ -30,3 +30,6 @@ docs/
 
 # Claude agent configs
 .claude/
+
+# Local-only docs
+README.RUS.md
